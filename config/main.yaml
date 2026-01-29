@@ -1,0 +1,16 @@
+defaults:
+  - override hydra/job_logging: none
+  - override hydra/hydra_logging: none
+  - _self_
+
+data:
+  raw:
+    calendar: ./data/raw_data/calendar.csv
+    sales_history: ./data/raw_data/sales_history.csv
+    prices_promos: ./data/raw_data/prices_promos.csv
+    stores: ./data/raw_data/stores.csv
+    suppliers: ./data/raw_data/suppliers.csv
+    skus: ./data/raw_data/skus.csv
+    initial_inventory: ./data/raw_data/initial_inventory.csv
+  processed:
+    processed_data: ./data/processed_data/processed_data.csv
