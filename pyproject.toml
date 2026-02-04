@@ -22,6 +22,10 @@ dependencies = [
     "plotly>=6.5.2",
     "prefect>=3.6.13",
     "mlflow>=3.9.0",
+    "scikit-learn>=1.8.0",
+    "gluonts>=0.14.0",
+    "torch>=2.0.0",
+    "lightning>=2.0.0",
 ]
 
 [project.optional-dependencies]

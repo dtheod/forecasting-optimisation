@@ -5,12 +5,27 @@ defaults:
 
 data:
   raw:
-    calendar: ./data/raw_data/calendar.csv
-    sales_history: ./data/raw_data/sales_history.csv
-    prices_promos: ./data/raw_data/prices_promos.csv
-    stores: ./data/raw_data/stores.csv
-    suppliers: ./data/raw_data/suppliers.csv
-    skus: ./data/raw_data/skus.csv
-    initial_inventory: ./data/raw_data/initial_inventory.csv
+    calendar: ./data/raw/calendar.csv
+    sales_history: ./data/raw/sales_history.csv
+    prices_promos: ./data/raw/prices_promos.csv
+    stores: ./data/raw/stores.csv
+    suppliers: ./data/raw/suppliers.csv
+    skus: ./data/raw/skus.csv
+    initial_inventory: ./data/raw/initial_inventory.csv
   processed:
-    processed_data: ./data/processed_data/processed_data.csv
+    path: ./data/processed/processed_data.csv
+  features:
+    path: ./data/features/features.csv
+
+model:
+  name: deepar
+  horizon: 4
+  dir: ./models/gluonts_model
+  # Hyperparameters
+  context_length: 26
+  epochs: 50
+  num_layers: 2
+  hidden_size: 40
+
+tuning:
+  n_trials: 10
