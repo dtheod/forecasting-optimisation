@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import os
 from pathlib import Path
@@ -44,7 +45,10 @@ def visualize_forecasts(features: pd.DataFrame,
     feat_dynamic_real_cols = [
         "sell_price", "promo_flag", "price_multiplier",
         "stockout_flag", "holiday_flag", "temp_index",
-        "month_sin", "month_cos", "woy_sin", "woy_cos"
+        "month_sin", "month_cos", "woy_sin", "woy_cos",
+        "units_sold_lag_1", "units_sold_lag_4", "units_sold_lag_12",
+        "units_sold_window_4_mean", "units_sold_window_4_std",
+        "units_sold_window_12_mean", "units_sold_window_12_std"
     ]
     feat_dynamic_real_cols = [c for c in feat_dynamic_real_cols if c in df.columns]
     
@@ -113,3 +117,71 @@ def visualize_forecasts(features: pd.DataFrame,
         plt.close()
         
     print(f"Saved {len(sample_indices)} plots to {output_dir}")
+
+    # 5. Export Forecasts to CSV
+    print(f"[EVALUATION] Exporting forecasts to CSV...")
+    export_data = []
+    
+    for forecast, ts in zip(forecasts, tss):
+        # Determine the prediction interval
+        start_date = forecast.start_date
+        # Create a period range for the forecast horizon
+        forecast_dates = pd.period_range(
+             start=start_date, 
+             periods=prediction_length, 
+             freq=freq
+        ).to_timestamp()
+        
+        # Get actuals for this range
+        # ts is a pandas Series with PeriodIndex. Convert to timestamp for alignment if needed?
+        # Let's slice ts by the forecast range.
+        # ts index is PeriodIndex. forecast_dates is DatetimeIndex.
+        # It's easier to work with Periods for slicing then convert.
+        
+        forecast_periods = pd.period_range(
+             start=start_date, 
+             periods=prediction_length, 
+             freq=freq
+        )
+        
+        actuals = ts.loc[forecast_periods].values if hasattr(ts, 'loc') else np.full(prediction_length, np.nan)
+        # Handle case where indices might not match perfectly or missing data (fill NaN)
+        # Robust fetch:
+        actual_values = []
+        for p in forecast_periods:
+             try:
+                 val = ts.loc[p]
+                 if isinstance(val, (pd.Series, pd.DataFrame)):
+                     val = val.iloc[0]
+                 actual_values.append(val)
+             except KeyError:
+                 actual_values.append(None)
+        
+        # Predictions
+        p10 = forecast.quantile(0.1)
+        p50 = forecast.quantile(0.5)
+        p90 = forecast.quantile(0.9)
+        mean = forecast.mean
+        
+        for i, date in enumerate(forecast_dates):
+            export_data.append({
+                "item_id": forecast.item_id,
+                "date": date,
+                "actual": actual_values[i],
+                "mean_prediction": mean[i],
+                "p10": p10[i],
+                "p50": p50[i],
+                "p90": p90[i]
+            })
+            
+    export_df = pd.DataFrame(export_data)
+    output_csv = f"{output_dir}/../forecasts.csv" # Save in outputs/ root
+    # Or just outputs/forecasts.csv if output_dir is outputs/plots
+    # Let's put it in outputs/forecasts.csv
+    
+    # Normalize output path
+    base_output_dir = os.path.dirname(output_dir) # e.g. "outputs"
+    csv_path = os.path.join(base_output_dir, "forecasts.csv")
+    
+    export_df.to_csv(csv_path, index=False)
+    print(f"Saved forecast data to {csv_path}")
