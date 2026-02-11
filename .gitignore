@@ -90,7 +90,6 @@ target/
 .ruff_cache/
 
 # Hydra logs
-outputs
 multirun
 
 # Data
@@ -106,5 +105,3 @@ models/*
 scripts/*
 
 lightning_logs/*
-
-outputs/*
