@@ -159,6 +159,10 @@ The dashboard will be available at `http://localhost:8501` and provides:
 - **Cost breakdown** — donut chart showing purchase, holding, spoilage, and stockout penalty costs
 - **Results table** — detailed per-week optimisation outputs
 
+### Demo
+
+![Streamlit Dashboard Demo](outputs/presentation.png)
+
 > **Note:** The dashboard reads from `outputs/forecasts.csv`, `outputs/optimization_results.csv`, and `data/processed/processed_data.csv`. Run the main pipeline first to generate these files.
 
 ---
