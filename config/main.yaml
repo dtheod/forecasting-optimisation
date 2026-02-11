@@ -21,11 +21,12 @@ model:
   name: deepar
   horizon: 4
   dir: ./models/gluonts_model
-  # Hyperparameters
   context_length: 26
-  epochs: 50
+  dropout: 0.1
+  epochs: 40
   num_layers: 2
   hidden_size: 40
 
 tuning:
+  enabled: true
   n_trials: 10

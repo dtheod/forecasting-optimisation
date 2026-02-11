@@ -26,6 +26,7 @@ dependencies = [
     "gluonts>=0.14.0",
     "torch>=2.0.0",
     "lightning>=2.0.0",
+    "kaleido>=0.2.1",
 ]
 
 [project.optional-dependencies]
