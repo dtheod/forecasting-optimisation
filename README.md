@@ -1,214 +1,210 @@
-# forecasting-optimisation
+# Forecasting & Inventory Optimisation
 
-## Tools used in this project
+An end-to-end demand forecasting and inventory optimisation pipeline for retail stores. The system trains a **DeepAR** probabilistic forecasting model on weekly sales data, then feeds the forecasts into a **Mixed-Integer Linear Program (MILP)** that determines optimal order quantities per store and SKU — minimising purchasing, holding, spoilage, and stockout costs. Results are explored through an interactive **Streamlit** dashboard.
 
-* [hydra](https://hydra.cc/): Manage configuration files - [article](https://codecut.ai/stop-hard-coding-in-a-data-science-project-use-configuration-files-instead/)
-* [pdoc](https://github.com/pdoc3/pdoc): Automatically create an API documentation for your project
-* [pre-commit plugins](https://pre-commit.com/): Automate code reviewing formatting
-* [uv](https://github.com/astral-sh/uv): Ultra-fast Python package installer and resolver
-* [FastAPI](https://fastapi.tiangolo.com/): Modern, fast (high-performance), web framework for building APIs
-* [Docker](https://www.docker.com/): Platform for developing, shipping, and running applications
+---
+
+## Tools & Tech Stack
+
+| Category | Tool | Purpose |
+|---|---|---|
+| **Forecasting** | [GluonTS](https://ts.gluon.ai/) + [PyTorch Lightning](https://lightning.ai/) | DeepAR probabilistic time-series model |
+| **Optimisation** | [PuLP](https://coin-or.github.io/pulp/) | MILP solver for inventory order planning |
+| **Orchestration** | [Prefect](https://www.prefect.io/) | Pipeline orchestration & flow management |
+| **Experiment Tracking** | [MLflow](https://mlflow.org/) | Model & metric tracking |
+| **Configuration** | [Hydra](https://hydra.cc/) | YAML-based configuration management |
+| **Dashboard** | [Streamlit](https://streamlit.io/) + [Plotly](https://plotly.com/) | Interactive visualisation |
+| **Data** | [pandas](https://pandas.pydata.org/) | Data manipulation & feature engineering |
+| **ML Utilities** | [scikit-learn](https://scikit-learn.org/), [LightGBM](https://lightgbm.readthedocs.io/), [skforecast](https://skforecast.org/) | Feature engineering & baseline models |
+| **API** | [FastAPI](https://fastapi.tiangolo.com/) | REST API for serving predictions |
+| **Packaging** | [uv](https://github.com/astral-sh/uv) | Fast Python dependency management |
+| **Containerisation** | [Docker](https://www.docker.com/) | Reproducible deployment |
+| **Linting** | [Ruff](https://docs.astral.sh/ruff/), [mypy](https://mypy-lang.org/) | Code quality & type checking |
+
+---
 
 ## Project Structure
 
-```bash
+```
 .
-├── config
-│   ├── main.yaml                   # Main configuration file
-│   ├── model                       # Configurations for training model
-│   │   ├── model1.yaml             # First variation of parameters to train model
-│   │   └── model2.yaml             # Second variation of parameters to train model
-│   └── process                     # Configurations for processing data
-│       ├── process1.yaml           # First variation of parameters to process data
-│       └── process2.yaml           # Second variation of parameters to process data
-├── data
-│   ├── final                       # data after training the model
-│   ├── processed                   # data after processing
-│   └── raw                         # raw data
-├── docs                            # documentation for your project
-├── .gitignore                      # ignore files that cannot commit to Git
-├── Dockerfile                      # Dockerfile for building the image
-├── docker-compose.yaml             # Docker Compose file for running the service
-├── models                          # store models
-├── notebooks                       # store notebooks
-├── .pre-commit-config.yaml         # configurations for pre-commit
-├── .python-version                 # specify Python version for the project
-├── pyproject.toml                  # project metadata and dependencies
-├── README.md                       # describe your project
-├── src                             # store source code
-│   ├── __init__.py                 # make src a Python module
-│   ├── app.py                      # FastAPI application
-│   ├── process.py                  # process data before training model
-│   ├── train_model.py              # train model
-│   └── utils.py                    # store helper functions
-└── tests                           # store tests
-    ├── __init__.py                 # make tests a Python module
-    ├── test_process.py             # test functions for process.py
-    └── test_train_model.py         # test functions for train_model.py
+├── config/
+│   └── main.yaml                    # Hydra configuration (data paths, model params, tuning)
+├── data/
+│   ├── raw/                         # Raw input CSVs (sales, calendar, stores, skus, etc.)
+│   ├── processed/                   # Processed data after joining & cleaning
+│   └── features/                    # Engineered feature sets
+├── models/                          # Serialised GluonTS model artifacts
+├── notebooks/                       # Exploratory analysis notebooks
+├── outputs/
+│   ├── forecasts.csv                # Exported forecasts (mean, p10, p50, p90)
+│   ├── optimization_results.csv     # MILP optimisation results per store/SKU
+│   └── plots/                       # Matplotlib forecast vs actuals plots
+├── src/
+│   ├── main.py                      # Prefect pipeline entry point
+│   ├── process.py                   # Data processing & joining
+│   ├── feature_engineering.py       # Feature creation (lags, rolling, calendar)
+│   ├── forecasting.py               # GluonTS DeepAR training & dataset building
+│   ├── tuning.py                    # Optuna hyperparameter tuning
+│   ├── evaluation.py                # Forecast visualisation & CSV export
+│   ├── optimization.py              # PuLP inventory optimisation (MILP)
+│   ├── streamlit_app.py             # Interactive Streamlit dashboard
+│   ├── app.py                       # FastAPI application
+│   └── utils.py                     # Helper functions
+├── tests/                           # Unit tests
+├── pyproject.toml                   # Dependencies & tool configuration
+├── Dockerfile                       # Container build
+└── docker-compose.yaml              # Container orchestration
 ```
 
-## Version Control Setup
+---
 
-1. Initialize Git in your project directory:
-```bash
-git init
+## Pipeline Overview
+
+```
+Raw Data → Processing → Feature Engineering → DeepAR Training → Forecasting → Optimisation
+                                                                      ↓               ↓
+                                                              forecasts.csv   optimization_results.csv
+                                                                      ↓               ↓
+                                                                  Streamlit Dashboard
 ```
 
-2. Add your remote repository:
-```bash
-# For HTTPS
-git remote add origin https://github.com/username/repository-name.git
+1. **Data Processing** (`process.py`): Joins sales history, calendar, store, SKU, supplier, and pricing data into a single weekly dataset.
+2. **Feature Engineering** (`feature_engineering.py`): Creates lag features, rolling statistics, calendar encodings (sin/cos), and promo indicators.
+3. **Model Training** (`forecasting.py`): Trains a DeepAR model via GluonTS with configurable context length, layers, hidden size, and dropout.
+4. **Evaluation** (`evaluation.py`): Generates probabilistic forecasts (mean, p10, p50, p90), exports to `outputs/forecasts.csv`, and saves matplotlib plots.
+5. **Optimisation** (`optimization.py`): Solves a per-store MILP that minimises total cost (purchase + holding + spoilage + stockout penalty) subject to lead time, MOQ, case pack, capacity, and safety stock constraints.
 
-# For SSH
-git remote add origin git@github.com:username/repository-name.git
-```
+---
 
-3. Create and switch to a new branch:
-```bash
-git checkout -b main
-```
+## Setup
 
-4. Add and commit your files:
-```bash
-git add .
-git commit -m "Initial commit"
-```
+### Prerequisites
+- Python ≥ 3.11
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
 
-5. Push to your remote repository:
-```bash
-git push -u origin main
-```
-
-## Set up the environment
-1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/)
-
-2. Install dependencies:
-
-- To install all dependencies from pyproject.toml, run:
+### Install Dependencies
 
 ```bash
+# All dependencies (including dev tools)
 uv sync --all-extras
-```
 
-- To install only production dependencies, run:
-
-```bash
+# Production only
 uv sync
 ```
 
-Note: To follow the rest of the instructions in this README (including running tests, generating documentation, and using pre-commit hooks), it is recommended to install all dependencies using `uv sync --all-extras`.
-
-3. Run Python scripts:
+### Additional Dependencies for the Dashboard
 
 ```bash
-uv run src/process.py
+pip install streamlit plotly "altair<5"
 ```
 
-## Set up pre-commit hooks
-Set up pre-commit:
+---
+
+## Running the Pipeline
+
+The main pipeline is orchestrated with **Prefect** and configured via **Hydra**:
+
 ```bash
-uv run pre-commit install
+uv run src/main.py
 ```
 
-The pre-commit configuration is already set up in `.pre-commit-config.yaml`. This includes:
-* `ruff`: A fast Python linter and code formatter that will automatically fix issues when possible
-* `black`: Python code formatting to ensure consistent code style
-* `mypy`: Static type checking for Python to catch type-related errors before runtime
+This will:
+1. Read raw data from `data/raw/`
+2. Process and save to `data/processed/processed_data.csv`
+3. Run feature engineering
+4. (Optional) Run hyperparameter tuning with Optuna
+5. Train the DeepAR model and save to `models/gluonts_model/`
+6. Generate forecasts and export to `outputs/forecasts.csv`
+7. Run inventory optimisation and export to `outputs/optimization_results.csv`
 
-Pre-commit will now run automatically on every commit. If any checks fail, the commit will be aborted and the issues will be automatically fixed when possible.
+### Configuration
 
-## View and alter configurations
-
-The project uses Hydra to manage configurations. You can view and modify these configurations from the command line.
-
-To view available configurations:
-```bash
-uv run src/process.py --help
-```
-
-Output:
+All parameters are in `config/main.yaml`:
 
 ```yaml
-process is powered by Hydra.
-
-== Configuration groups ==
-Compose your configuration from those groups (group=option)
-
-model: model1, model2
-process: process1, process2
-
-
-== Config ==
-Override anything in the config (foo.bar=value)
-
-process:
-  use_columns:
-  - col1
-  - col2
 model:
-  name: model1
-data:
-  raw: data/raw/sample.csv
-  processed: data/processed/processed.csv
-  final: data/final/final.csv
+  name: deepar
+  horizon: 4          # forecast horizon in weeks
+  context_length: 26  # lookback window in weeks
+  epochs: 40
+  num_layers: 2
+  hidden_size: 40
+  dropout: 0.1
+
+tuning:
+  enabled: true
+  n_trials: 10
 ```
 
-To override configurations (for example, changing the input data file):
+Override any parameter from the command line:
+
 ```bash
-uv run src/process.py data.raw=sample2.csv
+uv run src/main.py model.epochs=100 model.horizon=8
 ```
 
-Output:
+---
 
-```
-Process data using sample2.csv
-Columns used: ['col1', 'col2']
-```
+## Running the Streamlit Dashboard
 
-You can override any configuration value shown in the help output. Multiple overrides can be combined in a single command. For more information about Hydra's configuration system, visit the [official documentation](https://hydra.cc/docs/intro/).
-
-## Auto-generate API documentation
-Generate static documentation:
 ```bash
-uv run pdoc src -o docs
+streamlit run src/streamlit_app.py
 ```
 
-Start documentation server (available at http://localhost:8080):
-```bash
-uv run pdoc src --http localhost:8080
-```
+The dashboard will be available at `http://localhost:8501` and provides:
 
-The documentation will be generated from your docstrings and type hints in your Python files. The static documentation will be saved in the `docs` directory, while the live server allows you to view the documentation with hot-reloading as you make changes.
+- **Store & SKU selection** via sidebar dropdowns
+- **Item metadata** in the sidebar (category, supplier, lead time, MOQ, costs, region)
+- **Forecast plot** — historical actuals (black) with forecast mean (green), median (dashed), and p10–p90 confidence interval (shaded)
+- **Optimisation chart** — weekly order units (bars), projected inventory, lost sales, and forecast demand (lines)
+- **Cost breakdown** — donut chart showing purchase, holding, spoilage, and stockout penalty costs
+- **Results table** — detailed per-week optimisation outputs
 
-## Run API Server
+> **Note:** The dashboard reads from `outputs/forecasts.csv`, `outputs/optimization_results.csv`, and `data/processed/processed_data.csv`. Run the main pipeline first to generate these files.
 
-You can run the API server locally using `uvicorn`:
+---
+
+## Running the API Server
+
 ```bash
 uv run uvicorn src.app:app --reload
 ```
 
-The API will be available at `http://localhost:8000`. You can access the automatic API documentation at `http://localhost:8000/docs`.
+The API will be available at `http://localhost:8000` with interactive docs at `http://localhost:8000/docs`.
+
+---
 
 ## Docker
 
-You can also run the application using Docker.
-
-1. Build and run the container using Docker Compose:
-
 ```bash
+# Build and run
 docker-compose up --build
-```
 
-The API will be available at `http://localhost:8000`.
-
-2. Alternatively, build the image manually:
-
-```bash
+# Or manually
 docker build -t forecasting-optimisation .
+docker run -p 8000:8000 forecasting-optimisation
 ```
 
-3. Run the container:
+---
+
+## Development
+
+### Pre-commit Hooks
 
 ```bash
-docker run -p 8000:8000 forecasting-optimisation
+uv run pre-commit install
+```
+
+Runs **Ruff** (linting + formatting) and **mypy** (type checking) on every commit.
+
+### Generate API Documentation
+
+```bash
+uv run pdoc src -o docs          # static HTML
+uv run pdoc src --http localhost:8080  # live server
+```
+
+### Run Tests
+
+```bash
+uv run pytest
 ```
